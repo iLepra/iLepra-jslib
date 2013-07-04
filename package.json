@@ -13,7 +13,7 @@
   "main": "./lepra",
   "repository": {
     "type": "git",
-    "url": "https://bitbucket.org/yamalightz/lerpalib.git"
+    "url": "https://github.com/iLepra/iLepra-jslib.git"
   },
   "keywords": [
     "lepra",
