@@ -6,22 +6,60 @@ var config = {
         pass: ''
     },
 
-    onPostComment = function(){
+    onGetSublepraPosts = function(success){
+        if(success){
+            console.log('got sublepra posts ok!', lepralib.sub.posts.length, lepralib.sub.posts[0]);
+        }else{
+            console.log('get sublepra posts fail!');
+        }
+    },
+    getSublepraPosts = function(){
+        lepralib.sub.getPosts('http://kote.leprosorium.ru/', onGetSublepraPosts);
+    },
 
+    onGetSublepras = function(success){
+        if(success){
+            console.log('got sublepras ok!', lepralib.sub.list.length);
+        }else{
+            console.log('get sublepras fail!');
+        }
+    },
+    getSublepras = function(){
+        lepralib.sub.getList(onGetSublepras);
+    },
+
+    onGetProfile = function(success){
+        if(success){
+            console.log('got profile ok!', lepralib.profile.data);
+        }else{
+            console.log('get profile fail!');
+        }
+    },
+    getProfile = function(){
+        lepralib.profile.getProfile('yamalight', onGetProfile);
+    },
+
+    onPostComment = function(success){
+        if(success){
+            console.log('comment add ok!');
+        }else{
+            console.log('comment add fail!');
+        }
     },
     postComment = function(){
-        lepralib.post.addComment()
+        lepralib.post.addComment("test post", null, lepralib.post.current.wtf.comment, '1539365', 'inbox', null, onPostComment);
     },
 
     onGetComments = function(success){
         if(success){
             console.log('comments get ok!', lepralib.post.current, lepralib.post.comments.length, lepralib.post.newComments.length);
+            postComment();
         }else{
             console.log('comments get fail!');
         }
     },
     getComments = function(){
-        lepralib.post.getComments("1539191", '', null, onGetComments);
+        lepralib.post.getComments("1539365", "inbox", null, onGetComments);
     },
 
     onGetGov = function(success){
@@ -152,7 +190,7 @@ var config = {
         if(success){
             console.log('authed');
             //afterLoggedIn();
-            getComments();
+            getSublepraPosts();
         }else{
             console.log('not authed, please enter captcha');
 

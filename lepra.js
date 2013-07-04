@@ -285,8 +285,8 @@ iLepra = module.exports = {
     /***
      Gets last posts from JSON interface
      ***/
-    getNewsCounters: function(){
-        request("http://leprosorium.ru/api/lepropanel", function(error, response, data){
+    getNewsCounters: function(callback){
+        requestWithCookie(request, {url:"http://leprosorium.ru/api/lepropanel"}, function(error, response, data){
             var res = JSON.parse(data);
 
             iLepra.inboxNewPosts = parseInt(res.inboxunreadposts, 10);
@@ -298,7 +298,7 @@ iLepra = module.exports = {
             iLepra.myNewPosts = parseInt(res.myunreadposts, 10);
 
             // trigger update
-            //$(document).trigger(iLepra.events.update);
+            callback(true);
         });
     },
 
@@ -759,9 +759,9 @@ iLepra.post = {
                 }
 
                 vote = 0;
-                if(res[9] !== null && res[9].length > 0){
+                if(res[9] && res[9].length > 0){
                     vote = 1;
-                }else if(res[10] !== null && res[10].length > 0){
+                }else if(res[10] && res[10].length > 0){
                     vote = -1;
                 }
 
@@ -831,13 +831,28 @@ iLepra.post = {
 
         if (inReplyTo) data.replyto = inReplyTo;
 
+        if(config.debug)
+            console.log("adding comment...".yellow);
+
         requestWithCookie(request.post, {url: url, form: data}, function(error, response, data){
+            if (error || response.statusCode !== 200) {
+                // report error
+                if(config.debug)
+                    console.log("error adding comment in:".red, error, response.statusCode);
+
+                callback(false);
+                return;
+            }
+
             data = JSON.parse(data);
 
             if (data.status === "ERR"){
+                if(config.debug)
+                    console.log("lepra thrown an error while adding comment!".red, data);
+
                 callback(false);
             } else {
-                if(inReplyTo){
+                if(!inReplyTo){
                     iLepra.post.comments.push({
                         id: data.new_comment.comment_id,
                         isNew: 1,
@@ -868,18 +883,21 @@ iLepra.post = {
                     }
                 }
 
+                if(config.debug)
+                    console.log("adding comment ok!".green);
+
                 callback(true);
             }
         });
     },
 
     // vote for comment
-    voteComment: function(id, value){
+    voteComment: function(value, id, postid, wtf, domain_url, callback){
         var url, data;
 
         url = "http://";
-        if (iLepra.post.current.domain_url !== "") {
-            url += iLepra.post.current.domain_url;
+        if (domain_url && domain_url.length > 0) {
+            url += domain_url;
         } else {
             url += "leprosorium.ru";
         }
@@ -887,23 +905,40 @@ iLepra.post = {
 
         data = {
             type: 0,
-            wtf: iLepra.post.current.wtf.vote,
-            post_id: iLepra.post.current.id,
+            wtf: wtf,
+            post_id: postid,
             id: id,
             value: value // 1 || -1
         };
 
+        if(config.debug)
+            console.log("voting...".yellow);
+
         // post
-        $.post(url, data, function(data){});
+        requestWithCookie(request.post, {url: url, form: data}, function(error, response, data){
+            if (error || response.statusCode !== 200) {
+                // report error
+                if(config.debug)
+                    console.log("error voting in:".red, error, response.statusCode);
+
+                callback(false);
+                return;
+            }
+
+            if(config.debug)
+                console.log("voting oK!:".green);
+
+            callback(true);
+        });
     },
 
     // vote for post
-    votePost: function(id, value){
+    votePost: function(value, id, domain_url, callback){
         var url, data;
 
         url = "http://";
-        if (iLepra.post.current.domain_url !== ""){
-            url += iLepra.post.current.domain_url;
+        if (domain_url && domain_url.length > 0){
+            url += domain_url;
         } else {
             url += "leprosorium.ru";
         }
@@ -916,8 +951,26 @@ iLepra.post = {
             value: value // 1 || -1
         };
 
+        if(config.debug)
+            console.log("voting for post...".yellow);
+
         // post
-        $.post(url, data, function(data){});
+        // post
+        requestWithCookie(request.post, {url: url, form: data}, function(error, response, data){
+            if (error || response.statusCode !== 200) {
+                // report error
+                if(config.debug)
+                    console.log("error voting for post in:".red, error, response.statusCode);
+
+                callback(false);
+                return;
+            }
+
+            if(config.debug)
+                console.log("voting oK!:".green);
+
+            callback(true);
+        });
     }
 };
 
@@ -929,13 +982,25 @@ iLepra.post = {
 iLepra.profile = {
     data: null,
 
-    getProfile: function(username){
+    getProfile: function(username, callback){
         var url, userpic, regdata, num, date, name, loc, karma,
             statWrote, statRate, userstat, votestat, story, contacts;
 
         url = "http://leprosorium.ru/users/"+username;
 
-        $.get(url, function(data){
+        if(config.debug)
+            console.log("getting profile for :".yellow, username.yellow);
+
+        requestWithCookie(request, {url:url}, function(error, response, data){
+            if (error || response.statusCode !== 200) {
+                // report error
+                if(config.debug)
+                    console.log("error getting profile in:".red, error, response.statusCode);
+
+                callback(false);
+                return;
+            }
+
             // cleanup data
             data = data.replace(/\n+/g, '');
             data = data.replace(/\r+/g, '');
@@ -984,8 +1049,11 @@ iLepra.profile = {
                 description: story
             };
 
+            if(config.debug)
+                console.log("got profile!".green);
+
             // dispatch event
-            $(document).trigger(iLepra.events.ready);
+            callback(true);
         });
     }
 };
@@ -1000,8 +1068,20 @@ iLepra.sub = {
     fetch: true,
     postCount: 0,
 
-    getList: function(shift){
-        $.get("http://leprosorium.ru/underground/", function(data){
+    getList: function(callback){
+        if(config.debug)
+            console.log("getting sublepras...".yellow);
+
+        requestWithCookie(request, {url:"http://leprosorium.ru/underground/readers/"}, function(error, response, data){
+            if (error || response.statusCode !== 200) {
+                // report error
+                if(config.debug)
+                    console.log("error getting sublepras in:".red, error, response.statusCode);
+
+                callback(false);
+                return;
+            }
+
             // cleanup data
             data = data.replace(/\n+/g, '');
             data = data.replace(/\r+/g, '');
@@ -1029,39 +1109,71 @@ iLepra.sub = {
             }
 
             // dispatch event
-            $(document).trigger(iLepra.events.ready);
+            if(config.debug)
+                console.log("got sublepras!".green);
+
+            callback(true);
         });
     },
 
-    getPosts: function(url){
+    getPosts: function(url, callback){
         // get data
         iLepra.sub.postCount = 0;
-        $.post(url+"/idxctl/", {from:iLepra.sub.postCount}, function(data){
+
+        if(config.debug)
+            console.log("getting sublepra posts...".yellow);
+
+        requestWithCookie(request.post, {url: url+"/idxctl/", from:iLepra.sub.postCount}, function(error, response, data){
+            if (error || response.statusCode !== 200) {
+                // report error
+                if(config.debug)
+                    console.log("error getting sublepra posts in:".red, error, response.statusCode);
+
+                callback(false);
+                return;
+            }
+
             // convert string to object
-            data = $.parseJSON(data);
+            data = JSON.parse(data);
             // init posts array
             iLepra.sub.posts = [];
             // parse
             iLepra.util.processJSONPosts(data.posts, iLepra.sub.posts);
+
+            if(config.debug)
+                console.log("got sublepra posts!".green);
+
             // trigger event
-            $(document).trigger(iLepra.events.ready);
+            callback(true);
         });
     },
 
-    getMorePosts: function(url){
+    getMorePosts: function(url, callback){
         iLepra.sub.postCount += 42;
 
-        $.post(url+"/idxctl/", {from:iLepra.sub.postCount}, function(data){
+        if(config.debug)
+            console.log("getting more sublepra posts...".yellow);
+
+        requestWithCookie(request.post, {url: url+"/idxctl/", from:iLepra.sub.postCount}, function(error, response, data){
+            if (error || response.statusCode !== 200) {
+                // report error
+                if(config.debug)
+                    console.log("error getting sublepra more posts in:".red, error, response.statusCode);
+
+                callback(false);
+                return;
+            }
+
             // convert string to object
-            data = $.parseJSON(data);
+            data = JSON.parse(data);
             // parse
             iLepra.util.processJSONPosts(data.posts, iLepra.sub.posts);
+
+            if(config.debug)
+                console.log("got sublepra more posts!".green);
+
             // trigger event
-            $(document).trigger(iLepra.events.ready);
+            callback(true);
         });
     }
 };
-
-/***
- * Subs submodule
- ***/

@@ -190,7 +190,7 @@ describe('lepralib', function() {
 
         describe('#sendMessage()', function(){
             it.skip('should send chat messages', function(done) {
-                lepralib.chat.sendMessage("Тестовый привет от робота, котаны!", function(success){
+                lepralib.chat.sendMessage('Тестовый привет от робота, котаны!', function(success){
                     success.should.be.true;
                     done();
                 });
@@ -220,7 +220,7 @@ describe('lepralib', function() {
     describe('.post', function(){
         describe('#getComments()', function(){
             it('should get post comments', function(done){
-                lepralib.post.getComments("1539191", null, null, function(success){
+                lepralib.post.getComments('1530936', '', 'games.leprosorium.ru', function(success){
                     success.should.be.true;
                     lepralib.post.current.should.have.property('wtf');
                     lepralib.post.current.wtf.should.have.property('comment');
@@ -230,5 +230,125 @@ describe('lepralib', function() {
                 });
             });
         });
+
+        describe.skip('#addComment()', function(){
+            it('should post comment', function(done){
+                var comLen = lepralib.post.comments.length;
+                lepralib.post.addComment('test post '+new Date().toString(), null, lepralib.post.current.wtf.comment, '1539365', 'inbox', null, function(success){
+                    success.should.be.true;
+                    (lepralib.post.comments.length - comLen).should.equal(1);
+                    done();
+                });
+            });
+        });
+
+        describe.skip('#voteComment()', function(){
+            it('should vote for comment', function(done){
+                lepralib.post.voteComment('1', '33981295', '1530936', lepralib.post.current.wtf.vote, 'games.leprosorium.ru', function(success){
+                    success.should.be.true;
+                    done();
+                });
+            });
+        });
+
+        describe.skip('#votePost()', function(){
+            it('should vote for post', function(done){
+                lepralib.post.votePost('1', '1530936', 'games.leprosorium.ru', function(success){
+                    success.should.be.true;
+                    done();
+                });
+            });
+        });
     });
+
+    /**
+     * Profile submodule tests
+     */
+    describe('.profile', function(){
+        describe('#getProfile()', function(){
+            it('should get profile', function(done){
+                lepralib.profile.getProfile('yamalight', function(success){
+                    success.should.be.true;
+                    lepralib.profile.data.username.should.equal('yamalight');
+                    done();
+                });
+            });
+        });
+    });
+
+    /**
+     * Subs submodule tests
+     */
+    describe('.sub', function(){
+        describe('#getList()', function(){
+            it('should get list of sublepras', function(done){
+                lepralib.sub.getList(function(success){
+                    success.should.be.true;
+                    lepralib.sub.list.length.should.equal(42);
+                    lepralib.sub.list[0].should.have.property('name');
+                    lepralib.sub.list[0].should.have.property('creator');
+                    lepralib.sub.list[0].should.have.property('link');
+                    lepralib.sub.list[0].should.have.property('logo');
+                    done();
+                });
+            });
+        });
+
+        describe('#getPosts()', function(){
+            it('should get sublepra posts', function(done){
+                lepralib.sub.getPosts('http://kote.leprosorium.ru/', function(success){
+                    success.should.be.true;
+                    lepralib.sub.posts.length.should.equal(42);
+                    lepralib.sub.posts[0].should.have.property('id');
+                    lepralib.sub.posts[0].should.have.property('body');
+                    lepralib.sub.posts[0].should.have.property('rating');
+                    lepralib.sub.posts[0].should.have.property('domain_url');
+                    lepralib.sub.posts[0].should.have.property('image');
+                    lepralib.sub.posts[0].should.have.property('text');
+                    lepralib.sub.posts[0].should.have.property('user');
+                    lepralib.sub.posts[0].should.have.property('comments');
+                    lepralib.sub.posts[0].should.have.property('wrote');
+                    lepralib.sub.posts[0].should.have.property('when');
+                    lepralib.sub.posts[0].should.have.property('vote');
+                    done();
+                });
+            });
+        });
+
+        describe('#getMorePosts()', function(){
+            it('should get more posts', function(done){
+                var oldCount = lepralib.sub.postCount;
+                lepralib.sub.getMorePosts('http://kote.leprosorium.ru/', function(success){
+                    success.should.be.true;
+                    (lepralib.sub.postCount - oldCount).should.equal(42);
+                    lepralib.sub.posts[0].should.have.property('id');
+                    lepralib.sub.posts[0].should.have.property('body');
+                    lepralib.sub.posts[0].should.have.property('rating');
+                    lepralib.sub.posts[0].should.have.property('domain_url');
+                    lepralib.sub.posts[0].should.have.property('image');
+                    lepralib.sub.posts[0].should.have.property('text');
+                    lepralib.sub.posts[0].should.have.property('user');
+                    lepralib.sub.posts[0].should.have.property('comments');
+                    lepralib.sub.posts[0].should.have.property('wrote');
+                    lepralib.sub.posts[0].should.have.property('when');
+                    lepralib.sub.posts[0].should.have.property('vote');
+                    done();
+                });
+            });
+        })
+    });
+
 });
+
+
+
+
+
+
+
+
+
+
+
+
+
