@@ -1,0 +1,40 @@
+{
+  "name": "lepralib",
+  "preferGlobal": true,
+  "version": "0.0.1",
+  "author": "Tim Ermilov <yamalight@gmail.com>",
+  "description": "Lepralib for node.js, allows access to you Lepra account",
+  "contributors": [
+    {
+      "name": "",
+      "email": ""
+    }
+  ],
+  "main": "./lepra",
+  "repository": {
+    "type": "git",
+    "url": "https://bitbucket.org/yamalightz/lerpalib.git"
+  },
+  "keywords": [
+    "lepra",
+    "lib",
+    "rest",
+    "node"
+  ],
+  "dependencies": {
+    "request": "*",
+    "file-store": "*",
+    "colors": "*"
+  },
+  "devDependencies": {
+    "mocha": "*",
+    "should": "*",
+    "prompt": "*",
+    "grunt": "*",
+    "grunt-contrib-jshint": "*"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": ">=0.6"
+  }
+}
