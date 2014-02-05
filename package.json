@@ -23,7 +23,6 @@
   ],
   "dependencies": {
     "request": "*",
-    "file-store": "*",
     "colors": "*"
   },
   "devDependencies": {
