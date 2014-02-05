@@ -1,147 +1,130 @@
 // requires
-// libs
-var request = require('request'),
-    colors = require('colors'),
-    fileStore = require("file-store"),
-    store = fileStore("cookies/data.json"),
-    // lepralib utility pieces
-    leprautil = require('./lepra.util'),
+var request = require('request');
+var colors = require('colors');
 
-    // main var
-    iLepra,
+// init main object
+var iLepra = {};
 
-    // config
-    config = {
-        debug: false,
-        screenBiggest: 800
-    },
+// lepralib utility pieces
+var leprautil = require('./lib/lepra.util');
 
-    // last fetch times for stuff
-    cacheTime = 30 * 60000,
-    lastPostFetchTime = null,
-    myStuffFetchTime = null,
-    inboxFetchTime = null,
-    myStuffOldNew = {c:null, p:null},
-    inboxOldNew = {c:null, p:null},
+// last fetch times for stuff
+var cacheTime = 30 * 60000;
+var lastPostFetchTime = null;
+var myStuffFetchTime = null;
+var inboxFetchTime = null;
+var myStuffOldNew = {c:null, p:null};
+var inboxOldNew = {c:null, p:null};
 
-    // colors for borders
-    borderColors = [
-        "#000000",
-        "#660000",
-        "#cc3333",
-        "#663399",
-        "#0066cc",
-        "#66cccc",
-        "#669900",
-        "#666600",
-        "#cccc33",
-        "#ffcc33",
-        "#ff6600",
-        "#996633",
-        "#999999",
-        "#cccccc",
-        "#333333"
-    ],
+/**
+ * Override console.log() to only render if debug is on
+ */
+var originalLog = console.log;
+console.log = function() {
+    if(iLepra.config.debug) {
+        Array.prototype.unshift.call(arguments, '[leprabox] '.white);
+        originalLog.apply(this, arguments);
+    }
+};
 
-    /***
-     Processes given html string for captcha data
-     ***/
-    processCaptcha = function(source){
-        var captchaReg = /img alt="captcha" src="(.+?)"/g,
-            loginReg = /<input type="hidden" name="logincode" value="(.+?)"/g;
+/***
+ Add cookie to default request
+ ***/
+var fillRequestWithCookies = function(cookies){
+    var j = request.jar();
+    var i, len = cookies.length;
 
-        iLepra.captchaURL = "http://leprosorium.ru" + captchaReg.exec(source)[1];
-        iLepra.loginCode = loginReg.exec(source)[1];
+    // fill container with cookies
+    for(i = 0; i < len; i++) {
+        j.add(request.cookie(cookies[i]));
+    }
 
-        if(config.debug)
-            console.log('got captcha'.green, iLepra.captchaURL, iLepra.loginCode);
-    },
+    // replace default request with new one with cookies
+    request = request.defaults({jar: j});
+};
 
-    /***
-     Processes given html string for user's data
-     ***/
-    processMain = function(data){
-        // cleanup data
-        data = data.replace(/\n+/g, '');
-        data = data.replace(/\r+/g, '');
-        data = data.replace(/\t+/g, '');
-        // get post vote wtf
-        iLepra.postVoteWTF = /wtf_vote = '(.+?)'/g.exec(data)[1];
-        // get mystuff wtf
-        iLepra.myStuffWTF = /mythingsHandler.wtf = '(.+?)'/g.exec(data)[1];
-        // get chat wtf
-        iLepra.chat.wtf = /chatHandler.wtf = '(.+?)'/g.exec(data)[1];
-        // get username
-        iLepra.username = /<div id="greetings" class="columns_wrapper">.+?<a href=".+?">(.+?)<\/a>/g.exec(data)[1];
-        // logout wtf
-        iLepra.logoutWTF = /name="wtf" value="(.+?)"/g.exec(data)[1];
-        // get sublepras
-        iLepra.userSubLepras = [];
 
-        // vars
-        var subReg, res, sublepra;
+/***
+ Processes given html string for captcha data
+ ***/
+var processCaptcha = function(source){
+    var captchaReg = /img alt="captcha" src="(.+?)"/g,
+        loginReg = /<input type="hidden" name="logincode" value="(.+?)"/g;
 
-        // sub lepra regex
-        subReg = /<div class="sub"><strong class="logo"><a href="(.+?)" title="(.*?)"><img src="(.+?)" alt=".+?" \/>.+?<div class="creator">.+?<a href=".*?\/users\/.+?">(.+?)<\/a>/g;
+    iLepra.captchaURL = 'http://leprosorium.ru' + captchaReg.exec(source)[1];
+    iLepra.loginCode = loginReg.exec(source)[1];
 
-        // get them all
+    console.log('got captcha'.green, iLepra.captchaURL, iLepra.loginCode);
+};
+
+/***
+ Processes given html string for user's data
+ ***/
+var processMain = function(data){
+    // cleanup data
+    data = data.replace(/\n+/g, '');
+    data = data.replace(/\r+/g, '');
+    data = data.replace(/\t+/g, '');
+    // get post vote wtf
+    iLepra.postVoteWTF = /wtf_vote = '(.+?)'/g.exec(data)[1];
+    // get mystuff wtf
+    iLepra.myStuffWTF = /mythingsHandler.wtf = '(.+?)'/g.exec(data)[1];
+    // get chat wtf
+    iLepra.chat.wtf = /chatHandler.wtf = '(.+?)'/g.exec(data)[1];
+    // get username
+    iLepra.username = /<div id="greetings" class="columns_wrapper">.+?<a href=".+?">(.+?)<\/a>/g.exec(data)[1];
+    // logout wtf
+    iLepra.logoutWTF = /name="wtf" value="(.+?)"/g.exec(data)[1];
+    // get sublepras
+    iLepra.userSubLepras = [];
+
+    // vars
+    var subReg, res, sublepra;
+
+    // sub lepra regex
+    subReg = /<div class="sub"><strong class="logo"><a href="(.+?)" title="(.*?)"><img src="(.+?)" alt=".+?" \/>.+?<div class="creator">.+?<a href=".*?\/users\/.+?">(.+?)<\/a>/g;
+
+    // get them all
+    res = subReg.exec(data);
+    while(res !== null){
+        sublepra = {
+            name: res[2],
+            creator: res[4],
+            link: res[1],
+            logo: res[3]
+        };
+        iLepra.userSubLepras.push(sublepra);
+
         res = subReg.exec(data);
-        while(res !== null){
-            sublepra = {
-                name: res[2],
-                creator: res[4],
-                link: res[1],
-                logo: res[3]
-            };
-            iLepra.userSubLepras.push(sublepra);
+    }
+};
 
-            res = subReg.exec(data);
+var getLastId = function(){
+    var last = '',
+        biggestId, i;
+    if (iLepra.chat.messages.length > 0) {
+        biggestId = 0;
+        for(i in iLepra.chat.messages ){
+            if (parseInt(iLepra.chat.messages[i].id, 10) > biggestId)
+                biggestId = parseInt(iLepra.chat.messages[i].id, 10);
         }
-    },
-
-    requestWithCookie = function(rq, params, cb){
-        store.get("cookie", function(err, value) {
-            if(!err && value) {
-                var j = request.jar(),
-                    cookie, i, len = value.length;
-
-                for(i = 0; i < len; i++) {
-                    cookie = request.cookie(value[i]);
-                    j.add(cookie);
-                }
-                params.jar = j;
-            }else{
-                if(config.debug)
-                    console.log('error applying cookie to request:'.red, err, value);
-            }
-
-            rq(params, cb);
-        });
-    },
-
-    getLastId = function(){
-        var last = "",
-            biggestId, i;
-        if (iLepra.chat.messages.length > 0) {
-            biggestId = 0;
-            for(i in iLepra.chat.messages ){
-                if (parseInt(iLepra.chat.messages[i].id, 10) > biggestId)
-                    biggestId = parseInt(iLepra.chat.messages[i].id, 10);
-            }
-            if (biggestId !== 0) last = biggestId;
-        }
-        return last;
-    };
+        if (biggestId !== 0) last = biggestId;
+    }
+    return last;
+};
 
 /**
  ** Main iLepra class that handles all the logic
  */
-iLepra = module.exports = {
+iLepra = {
     // include loaded pieces
     util: leprautil,
 
     // config
-    config: config,
+    config: {
+        debug: false,
+        screenBiggest: 800
+    },
 
     //
     // vars
@@ -151,6 +134,8 @@ iLepra = module.exports = {
     isAuthenticated: false,
     loginCode: null,
     captchaURL: null,
+    // current cookies
+    cookies: null,
 
     // error message
     errorMessage: null,
@@ -191,24 +176,27 @@ iLepra = module.exports = {
      Initializes iLepra for work, checks if user is
      logged in, gets captcha if not and posts if yes
      ***/
-    init: function(callback) {
+    init: function(cookies, callback) {
+        // add cookies to request if some are given
+        if(cookies) {
+            fillRequestWithCookies(cookies);
+        }
+
         // get lepra
-        requestWithCookie(request, {url: "http://leprosorium.ru"}, function(error, response, data){
+        request({url: 'http://leprosorium.ru'}, function(error, response, data){
             if (error || response.statusCode !== 200) {
                 // report error
-                if(config.debug)
-                    console.log("error init:".red, error, response.statusCode);
+                console.log('error init:'.red, error, response.statusCode);
 
                 callback(false);
                 return;
             }
 
-            if(config.debug)
-                console.log("init loaded".green);
+            // report prgoress
+            console.log('init loaded'.green);
 
             if(data.indexOf('<input type="password"') > 0){
-                if(config.debug)
-                    console.log("not authed, getting captcha".yellow);
+                console.log('not authed, getting captcha'.yellow);
 
                 processCaptcha(data);
                 iLepra.isAuthenticated = false;
@@ -216,8 +204,7 @@ iLepra = module.exports = {
                 // callback
                 callback(false);
             }else{
-                if(config.debug)
-                    console.log("authed ok! getting main page".green);
+                console.log('authed ok! getting main page'.green);
 
                 //iLepra.getLastPosts();
                 iLepra.isAuthenticated = true;
@@ -237,21 +224,18 @@ iLepra = module.exports = {
     tryLogin: function(data, callback){
         data.logincode = this.loginCode;
 
-        if(config.debug)
-            console.log("logging in with: ".yellow, data);
+        console.log('logging in with: '.yellow, data);
 
-        requestWithCookie(request.post, {url: "http://leprosorium.ru/login/", followAllRedirects:true, form: data}, function(error, response, data){
+        request.post({url: 'http://leprosorium.ru/login/', followAllRedirects:true, form: data}, function(error, response, data){
             if (error || response.statusCode !== 200) {
                 // report error
-                if(config.debug)
-                    console.log("error logging in:".red, error, response.statusCode);
+                console.log('error logging in:'.red, error, response.statusCode);
 
                 callback(false);
                 return;
             }
 
-            if(config.debug)
-                console.log('login loaded without error'.green);
+            console.log('login loaded without error'.green);
 
             if(data.indexOf('class="error"') > 0){
                 // get error
@@ -262,20 +246,20 @@ iLepra = module.exports = {
                 processCaptcha(data);
 
                 // dispatch error event and die
-                if(config.debug)
-                    console.log('login error:'.red, iLepra.errorMessage);
+                console.log('login error:'.red, iLepra.errorMessage);
 
                 callback(false);
             }else{
                 // store cookies
-                store.set("cookie", response.headers['set-cookie']);
+                iLepra.cookies = response.headers['set-cookie'];
+                // append cookies to request
+                fillRequestWithCookies(iLepra.cookies);
 
                 // process user's data
                 processMain(data);
 
                 // dispatch ok
-                if(config.debug)
-                    console.log('login successful!'.green);
+                console.log('login successful!'.green);
 
                 callback(true);
             }
@@ -286,7 +270,7 @@ iLepra = module.exports = {
      Gets last posts from JSON interface
      ***/
     getNewsCounters: function(callback){
-        requestWithCookie(request, {url:"http://leprosorium.ru/api/lepropanel"}, function(error, response, data){
+        request({url:'http://leprosorium.ru/api/lepropanel'}, function(error, response, data){
             var res = JSON.parse(data);
 
             iLepra.inboxNewPosts = parseInt(res.inboxunreadposts, 10);
@@ -311,24 +295,21 @@ iLepra = module.exports = {
         var time = new Date().getTime();
         // check if posts was loaded earlier than 1 min ago
         if (lastPostFetchTime !== null && Math.abs(time - lastPostFetchTime) < cacheTime && iLepra.latestPosts.length > 0 && !forceRefresh) {
-            if(config.debug)
-                console.log('posts already loaded!'.yellow);
+            console.log('posts already loaded!'.yellow);
 
             // cb
             callback(true);
             return;
         }
 
-        if(config.debug)
-            console.log('loading posts...'.yellow);
+        console.log('loading posts...'.yellow);
 
         // get data
         iLepra.postCount = 0;
-        requestWithCookie(request.post, {url: "http://leprosorium.ru/idxctl/", form:{from:iLepra.postCount}}, function(error, response, data){
+        request.post({url: 'http://leprosorium.ru/idxctl/', form:{from:iLepra.postCount}}, function(error, response, data){
             if (error || response.statusCode !== 200) {
                 // report error
-                if(config.debug)
-                    console.log("error loading posts in:".red, error, response.statusCode);
+                console.log('error loading posts in:'.red, error, response.statusCode);
 
                 callback(false);
                 return;
@@ -343,8 +324,7 @@ iLepra = module.exports = {
             // parse
             iLepra.util.processJSONPosts(data.posts, iLepra.latestPosts, iLepra.config.screenBiggest);
             // trigger cb
-            if(config.debug)
-                console.log('posts loaded!'.green);
+            console.log('posts loaded!'.green);
 
             callback(true);
         });
@@ -356,14 +336,12 @@ iLepra = module.exports = {
     getMorePosts: function(callback){
         iLepra.postCount += 42;
 
-        if(config.debug)
-            console.log('loading more posts...'.yellow);
+        console.log('loading more posts...'.yellow);
 
-        requestWithCookie(request.post, {url: "http://leprosorium.ru/idxctl/", form:{from:iLepra.postCount}}, function(error, response, data){
+        request.post({url: 'http://leprosorium.ru/idxctl/', form:{from:iLepra.postCount}}, function(error, response, data){
             if (error || response.statusCode !== 200) {
                 // report error
-                if(config.debug)
-                    console.log("error loading more posts in:".red, error, response.statusCode);
+                console.log('error loading more posts in:'.red, error, response.statusCode);
 
                 callback(false);
                 return;
@@ -385,14 +363,13 @@ iLepra = module.exports = {
      2 = only sub
      ***/
     switchLayout: function(type, callback){
-        requestWithCookie(request.post, {url: "http://leprosorium.ru/threshold/", followAllRedirects:true, form:{
+        request.post({url: 'http://leprosorium.ru/threshold/', followAllRedirects:true, form:{
             showonindex: type,
-            selected_threshold: "all"
+            selected_threshold: 'all'
         }}, function(error, response, data){
             if (error || response.statusCode !== 200) {
                 // report error
-                if(config.debug)
-                    console.log("error switching layout in:".red, error, response.statusCode);
+                console.log('error switching layout in:'.red, error, response.statusCode);
 
                 callback(false);
                 return;
@@ -414,23 +391,20 @@ iLepra = module.exports = {
         if ((iLepra.myNewComments === myStuffOldNew.c && iLepra.myNewPosts === myStuffOldNew.p) &&
             (myStuffFetchTime !== null && Math.abs(time - myStuffFetchTime) < cacheTime) &&
             iLepra.myStuffPosts.length > 0 && !forceRefresh){
-            if(config.debug)
-                console.log("mystuff is already loaded:".green);
+            console.log('mystuff is already loaded:'.green);
 
             // dispatch ready and die
             callback(true);
             return;
         }
 
-        if(config.debug)
-            console.log("loading mystuff..:".yellow);
+        console.log('loading mystuff..:'.yellow);
 
         // get data
-        requestWithCookie(request, {url: "http://leprosorium.ru/my/"}, function(error, response, data){
+        request({url: 'http://leprosorium.ru/my/'}, function(error, response, data){
             if (error || response.statusCode !== 200) {
                 // report error
-                if(config.debug)
-                    console.log("error loading mystuff in:".red, error, response.statusCode);
+                console.log('error loading mystuff in:'.red, error, response.statusCode);
 
                 callback(false);
                 return;
@@ -446,8 +420,7 @@ iLepra = module.exports = {
             iLepra.util.processHTMLPosts(data, iLepra.myStuffPosts, undefined, iLepra.config.screenBiggest);
 
             // trigger callback
-            if(config.debug)
-                console.log("loaded mystuff:".green);
+            console.log('loaded mystuff:'.green);
 
             callback(true);
         });
@@ -459,23 +432,20 @@ iLepra = module.exports = {
     getFavourites: function(callback){
         // check if posts was loaded earlier
         if (iLepra.favouritePosts !== null && iLepra.favouritePosts.length > 0){
-            if(config.debug)
-                console.log("favourites already loaded!".green);
+            console.log('favourites already loaded!'.green);
 
             // dispatch ready and die
             callback(true);
             return;
         }
 
-        if(config.debug)
-            console.log("loading favourites..:".yellow);
+        console.log('loading favourites..:'.yellow);
 
         // get data
-        requestWithCookie(request, {url: "http://leprosorium.ru/my/favourites/"}, function(error, response, data){
+        request({url: 'http://leprosorium.ru/my/favourites/'}, function(error, response, data){
             if (error || response.statusCode !== 200) {
                 // report error
-                if(config.debug)
-                    console.log("error loading favourites in:".red, error, response.statusCode);
+                console.log('error loading favourites in:'.red, error, response.statusCode);
 
                 callback(false);
                 return;
@@ -485,8 +455,7 @@ iLepra = module.exports = {
             iLepra.util.processHTMLPosts(data, iLepra.favouritePosts, 'fav', iLepra.config.screenBiggest);
 
             // callback
-            if(config.debug)
-                console.log("favourites loaded!".green);
+            console.log('favourites loaded!'.green);
 
             // dispatch ready and die
             callback(true);
@@ -504,23 +473,20 @@ iLepra = module.exports = {
         if ((iLepra.inboxNewComments === inboxOldNew.c && iLepra.inboxNewPosts === inboxOldNew.p) &&
             (inboxFetchTime !== null && Math.abs(time - inboxFetchTime) < cacheTime) &&
             iLepra.inboxPosts.length > 0 && !forceRefresh) {
-            if(config.debug)
-                console.log("inbox already loaded!".green);
+            console.log('inbox already loaded!'.green);
 
             // dispatch ready and die
             callback(true);
             return;
         }
 
-        if(config.debug)
-            console.log("loading inbox..".yellow);
+        console.log('loading inbox..'.yellow);
 
         // get data
-        requestWithCookie(request, {url: "http://leprosorium.ru/my/inbox/"}, function(error, response, data){
+        request({url: 'http://leprosorium.ru/my/inbox/'}, function(error, response, data){
             if (error || response.statusCode !== 200) {
                 // report error
-                if(config.debug)
-                    console.log("error loading favourites in:".red, error, response.statusCode);
+                console.log('error loading favourites in:'.red, error, response.statusCode);
 
                 callback(false);
                 return;
@@ -535,27 +501,9 @@ iLepra = module.exports = {
             iLepra.inboxPosts = [];
             iLepra.util.processHTMLPosts(data, iLepra.inboxPosts, 'inbox', iLepra.config.screenBiggest);
 
-            if(config.debug)
-                console.log("inbox loaded!".green);
+            console.log('inbox loaded!'.green);
 
             // dispatch ready and die
-            callback(true);
-        });
-    },
-
-    doLogout: function(callback){
-        store.delete("cookie", function (err) {
-            if(err){
-                if(config.debug)
-                    console.log("cookies not cleaned:".red, err);
-
-                callback(false);
-                return;
-            }
-
-            if(config.debug)
-                console.log("cookies cleaned. logged out.".green);
-
             callback(true);
         });
     }
@@ -568,7 +516,7 @@ iLepra = module.exports = {
 iLepra.chat = {
     messages: [],
     wtf: null,
-    defaultKey: "leprosorium.ru/",
+    defaultKey: 'leprosorium.ru/',
 
     getMessages: function(callback){
         var last = getLastId(),
@@ -578,14 +526,12 @@ iLepra.chat = {
             last: last
         };
 
-        if(config.debug)
-            console.log("getting chat...".yellow);
+        console.log('getting chat...'.yellow);
 
-        requestWithCookie(request.post, {url: "http://leprosorium.ru/chatctl/", form: data}, function(error, response, data){
+        request.post({url: 'http://leprosorium.ru/chatctl/', form: data}, function(error, response, data){
             if (error || response.statusCode !== 200) {
                 // report error
-                if(config.debug)
-                    console.log("error loading chat in:".red, error, response.statusCode);
+                console.log('error loading chat in:'.red, error, response.statusCode);
 
                 callback(false);
                 return;
@@ -598,8 +544,7 @@ iLepra.chat = {
                     iLepra.chat.messages.push(res.messages[i]);
             }
 
-            if(config.debug)
-                console.log("getting chat ok!".green);
+            console.log('getting chat ok!'.green);
 
             // dispatch event
             callback(true);
@@ -615,14 +560,12 @@ iLepra.chat = {
             body: text
         };
 
-        if(config.debug)
-            console.log("posting to chat...".yellow);
+        console.log('posting to chat...'.yellow);
 
-        requestWithCookie(request.post, {url: "http://leprosorium.ru/chatctl/", form:data}, function(error, response, data){
+        request.post({url: 'http://leprosorium.ru/chatctl/', form:data}, function(error, response, data){
             if (error || response.statusCode !== 200) {
                 // report error
-                if(config.debug)
-                    console.log("error posting to chat in:".red, error, response.statusCode);
+                console.log('error posting to chat in:'.red, error, response.statusCode);
 
                 callback(false);
                 return;
@@ -635,8 +578,7 @@ iLepra.chat = {
                     iLepra.chat.messages.push(res.messages[i]);
             }
 
-            if(config.debug)
-                console.log("posting to chat ok!".green);
+            console.log('posting to chat ok!'.green);
 
             // dispatch event
             callback(true);
@@ -655,14 +597,12 @@ iLepra.gov = {
     banned: null,
 
     getCurrent: function(callback){
-        if(config.debug)
-            console.log("getting government...".yellow);
+        console.log('getting government...'.yellow);
 
-        requestWithCookie(request,{url: "http://leprosorium.ru/democracy/"}, function(error, response, data){
+        request({url: 'http://leprosorium.ru/democracy/'}, function(error, response, data){
             if (error || response.statusCode !== 200) {
                 // report error
-                if(config.debug)
-                    console.log("error getting government in:".red, error, response.statusCode);
+                console.log('error getting government in:'.red, error, response.statusCode);
 
                 callback(false);
                 return;
@@ -680,8 +620,7 @@ iLepra.gov = {
             iLepra.gov.president = pr[1];
             iLepra.gov.time = pr[2];
 
-            if(config.debug)
-                console.log("got government!".green);
+            console.log('got government!'.green);
 
             // dispatch event
             callback(true);
@@ -707,21 +646,19 @@ iLepra.post = {
             vote, indent, style, isNew, post;
 
         if (type === 'inbox') {
-            url = "http://leprosorium.ru/my/inbox/"+id;
+            url = 'http://leprosorium.ru/my/inbox/'+id;
         } else {
-            server = "leprosorium.ru";
+            server = 'leprosorium.ru';
             if (domain_url && domain_url.length > 0) server = domain_url;
-            url = "http://"+server+"/comments/"+id;
+            url = 'http://'+server+'/comments/'+id;
         }
 
-        if(config.debug)
-            console.log("loading comments...".yellow);
+        console.log('loading comments...'.yellow);
 
-        requestWithCookie(request, {url:url}, function(error, response, data){
+        request({url:url}, function(error, response, data){
             if (error || response.statusCode !== 200) {
                 // report error
-                if(config.debug)
-                    console.log("error loading comments in:".red, error, response.statusCode);
+                console.log('error loading comments in:'.red, error, response.statusCode);
 
                 callback(false);
                 return;
@@ -754,7 +691,7 @@ iLepra.post = {
                 imgReg = /img src="(.+?)"/g;
                 resImg = imgReg.exec(text);
                 while(resImg !== null){
-                    text = text.replace(resImg[1], "http://src.sencha.io/"+iLepra.config.screenBiggest+"/"+resImg[1]);
+                    text = text.replace(resImg[1], 'http://src.sencha.io/'+iLepra.config.screenBiggest+'/'+resImg[1]);
                     resImg = imgReg.exec(text);
                 }
 
@@ -774,12 +711,6 @@ iLepra.post = {
                 text = text.replace(/<\/p>/gi, '');
                 text = text.replace(/<nonimg/ig, '<img');
 
-
-                style = '';
-                if (indent !== 0) {
-                    style = 'style="margin-left: '+5*indent+'px; border-left: 2px solid '+borderColors[indent]+'"';
-                }
-
                 isNew = res[2].indexOf('new') !== -1 ? 1 : 0;
 
                 post = {
@@ -790,11 +721,7 @@ iLepra.post = {
                     rating: res[7],
                     user: res[4],
                     when: res[5],
-                    vote: vote,
-
-                    // misc ui stuff
-                    newClass: isNew ? 'new" data-theme="d'  : "",
-                    style: style
+                    vote: vote
                 };
 
                 iLepra.post.comments.push(post);
@@ -804,8 +731,7 @@ iLepra.post = {
             }
 
             // dispatch event
-            if(config.debug)
-                console.log("comments loaded!".green);
+            console.log('comments loaded!'.green);
 
             callback(true);
         });
@@ -815,13 +741,13 @@ iLepra.post = {
     addComment: function(comment, inReplyTo, wtf, postid, type, domain_url, callback){
         var url, data, i, cm, max;
 
-        url = "http://";
-        if (domain_url && domain_url.length > 0 && type !== "inbox") {
+        url = 'http://';
+        if (domain_url && domain_url.length > 0 && type !== 'inbox') {
             url += domain_url;
         } else {
-            url += "leprosorium.ru";
+            url += 'leprosorium.ru';
         }
-        url += "/commctl/";
+        url += '/commctl/';
 
         data = {
             wtf: wtf,
@@ -831,14 +757,12 @@ iLepra.post = {
 
         if (inReplyTo) data.replyto = inReplyTo;
 
-        if(config.debug)
-            console.log("adding comment...".yellow);
+        console.log('adding comment...'.yellow);
 
-        requestWithCookie(request.post, {url: url, form: data}, function(error, response, data){
+        request.post({url: url, form: data}, function(error, response, data){
             if (error || response.statusCode !== 200) {
                 // report error
-                if(config.debug)
-                    console.log("error adding comment in:".red, error, response.statusCode);
+                console.log('error adding comment in:'.red, error, response.statusCode);
 
                 callback(false);
                 return;
@@ -846,9 +770,8 @@ iLepra.post = {
 
             data = JSON.parse(data);
 
-            if (data.status === "ERR"){
-                if(config.debug)
-                    console.log("lepra thrown an error while adding comment!".red, data);
+            if (data.status === 'ERR'){
+                console.log('lepra thrown an error while adding comment!'.red, data);
 
                 callback(false);
             } else {
@@ -860,7 +783,7 @@ iLepra.post = {
                         text: comment,
                         rating: 0,
                         user: data.new_comment.user_login,
-                        when: data.new_comment.date + " в " + data.new_comment.time,
+                        when: data.new_comment.date + ' в ' + data.new_comment.time,
                         vote: 0
                     });
                 }else{
@@ -875,7 +798,7 @@ iLepra.post = {
                                 text: comment,
                                 rating: 0,
                                 user: data.new_comment.user_login,
-                                when: data.new_comment.date + " в " + data.new_comment.time,
+                                when: data.new_comment.date + ' в ' + data.new_comment.time,
                                 vote: 0
                             });
                             break;
@@ -883,8 +806,7 @@ iLepra.post = {
                     }
                 }
 
-                if(config.debug)
-                    console.log("adding comment ok!".green);
+                console.log('adding comment ok!'.green);
 
                 callback(true);
             }
@@ -895,13 +817,13 @@ iLepra.post = {
     voteComment: function(value, id, postid, wtf, domain_url, callback){
         var url, data;
 
-        url = "http://";
+        url = 'http://';
         if (domain_url && domain_url.length > 0) {
             url += domain_url;
         } else {
-            url += "leprosorium.ru";
+            url += 'leprosorium.ru';
         }
-        url += "/rate/";
+        url += '/rate/';
 
         data = {
             type: 0,
@@ -911,22 +833,19 @@ iLepra.post = {
             value: value // 1 || -1
         };
 
-        if(config.debug)
-            console.log("voting...".yellow);
+        console.log('voting...'.yellow);
 
         // post
-        requestWithCookie(request.post, {url: url, form: data}, function(error, response, data){
+        request.post({url: url, form: data}, function(error, response, data){
             if (error || response.statusCode !== 200) {
                 // report error
-                if(config.debug)
-                    console.log("error voting in:".red, error, response.statusCode);
+                console.log('error voting in:'.red, error, response.statusCode);
 
                 callback(false);
                 return;
             }
 
-            if(config.debug)
-                console.log("voting oK!:".green);
+            console.log('voting oK!:'.green);
 
             callback(true);
         });
@@ -936,13 +855,13 @@ iLepra.post = {
     votePost: function(value, id, domain_url, callback){
         var url, data;
 
-        url = "http://";
+        url = 'http://';
         if (domain_url && domain_url.length > 0){
             url += domain_url;
         } else {
-            url += "leprosorium.ru";
+            url += 'leprosorium.ru';
         }
-        url += "/rate/";
+        url += '/rate/';
 
         data = {
             type: 1,
@@ -951,23 +870,20 @@ iLepra.post = {
             value: value // 1 || -1
         };
 
-        if(config.debug)
-            console.log("voting for post...".yellow);
+        console.log('voting for post...'.yellow);
 
         // post
         // post
-        requestWithCookie(request.post, {url: url, form: data}, function(error, response, data){
+        request.post({url: url, form: data}, function(error, response, data){
             if (error || response.statusCode !== 200) {
                 // report error
-                if(config.debug)
-                    console.log("error voting for post in:".red, error, response.statusCode);
+                console.log('error voting for post in:'.red, error, response.statusCode);
 
                 callback(false);
                 return;
             }
 
-            if(config.debug)
-                console.log("voting oK!:".green);
+            console.log('voting oK!:'.green);
 
             callback(true);
         });
@@ -986,16 +902,14 @@ iLepra.profile = {
         var url, userpic, regdata, num, date, name, loc, karma,
             statWrote, statRate, userstat, votestat, story, contacts;
 
-        url = "http://leprosorium.ru/users/"+username;
+        url = 'http://leprosorium.ru/users/'+username;
 
-        if(config.debug)
-            console.log("getting profile for :".yellow, username.yellow);
+        console.log('getting profile for :'.yellow, username.yellow);
 
-        requestWithCookie(request, {url:url}, function(error, response, data){
+        request({url:url}, function(error, response, data){
             if (error || response.statusCode !== 200) {
                 // report error
-                if(config.debug)
-                    console.log("error getting profile in:".red, error, response.statusCode);
+                console.log('error getting profile in:'.red, error, response.statusCode);
 
                 callback(false);
                 return;
@@ -1010,10 +924,10 @@ iLepra.profile = {
             if( userpic ){
                 userpic = userpic[1];
             }else{
-                userpic = "";
+                userpic = '';
             }
 
-            regdata = /<div class="userregisterdate">(.+?)<\/div>/g.exec(data)[1].replace(/\./g, "").split(', ');
+            regdata = /<div class="userregisterdate">(.+?)<\/div>/g.exec(data)[1].replace(/\./g, '').split(', ');
             num = regdata[0];
             date = regdata[1];
 
@@ -1024,13 +938,13 @@ iLepra.profile = {
             statWrote = /<div class="userstat userrating">(.+?)<\/div>/g.exec(data);
             statRate = /<div class="userstat uservoterate">Вес голоса&nbsp;&#8212; (.+?)<br.*?>Голосов в день&nbsp;&#8212; (.+?)<\/div>/g.exec(data);
             userstat = statWrote[1].replace(/(<([^>]+)>)/ig, ' ');
-            votestat = "Вес голоса&nbsp;&#8212; "+statRate[1]+",<br>Голосов в день&nbsp;&#8212; "+statRate[2];
+            votestat = 'Вес голоса&nbsp;&#8212; '+statRate[1]+',<br>Голосов в день&nbsp;&#8212; '+statRate[2];
 
             story = /<div class="userstory">(.+?)<\/div>/g.exec(data);
             if (story !== null) {
                 story = story[1];
             } else {
-                story = "";
+                story = '';
             }
 
             contacts = /<div class="usercontacts">(.+?)<\/div>/g.exec(data)[1].split(/<br.*?>/);
@@ -1049,8 +963,7 @@ iLepra.profile = {
                 description: story
             };
 
-            if(config.debug)
-                console.log("got profile!".green);
+            console.log('got profile!'.green);
 
             // dispatch event
             callback(true);
@@ -1069,14 +982,12 @@ iLepra.sub = {
     postCount: 0,
 
     getList: function(callback){
-        if(config.debug)
-            console.log("getting sublepras...".yellow);
+        console.log('getting sublepras...'.yellow);
 
-        requestWithCookie(request, {url:"http://leprosorium.ru/underground/readers/"}, function(error, response, data){
+        request({url:'http://leprosorium.ru/underground/readers/'}, function(error, response, data){
             if (error || response.statusCode !== 200) {
                 // report error
-                if(config.debug)
-                    console.log("error getting sublepras in:".red, error, response.statusCode);
+                console.log('error getting sublepras in:'.red, error, response.statusCode);
 
                 callback(false);
                 return;
@@ -1109,8 +1020,7 @@ iLepra.sub = {
             }
 
             // dispatch event
-            if(config.debug)
-                console.log("got sublepras!".green);
+            console.log('got sublepras!'.green);
 
             callback(true);
         });
@@ -1120,14 +1030,12 @@ iLepra.sub = {
         // get data
         iLepra.sub.postCount = 0;
 
-        if(config.debug)
-            console.log("getting sublepra posts...".yellow);
+        console.log('getting sublepra posts...'.yellow);
 
-        requestWithCookie(request.post, {url: url+"/idxctl/", from:iLepra.sub.postCount}, function(error, response, data){
+        request.post({url: url+'/idxctl/', from:iLepra.sub.postCount}, function(error, response, data){
             if (error || response.statusCode !== 200) {
                 // report error
-                if(config.debug)
-                    console.log("error getting sublepra posts in:".red, error, response.statusCode);
+                console.log('error getting sublepra posts in:'.red, error, response.statusCode);
 
                 callback(false);
                 return;
@@ -1140,8 +1048,7 @@ iLepra.sub = {
             // parse
             iLepra.util.processJSONPosts(data.posts, iLepra.sub.posts);
 
-            if(config.debug)
-                console.log("got sublepra posts!".green);
+            console.log('got sublepra posts!'.green);
 
             // trigger event
             callback(true);
@@ -1151,14 +1058,12 @@ iLepra.sub = {
     getMorePosts: function(url, callback){
         iLepra.sub.postCount += 42;
 
-        if(config.debug)
-            console.log("getting more sublepra posts...".yellow);
+        console.log('getting more sublepra posts...'.yellow);
 
-        requestWithCookie(request.post, {url: url+"/idxctl/", from:iLepra.sub.postCount}, function(error, response, data){
+        request.post({url: url+'/idxctl/', from:iLepra.sub.postCount}, function(error, response, data){
             if (error || response.statusCode !== 200) {
                 // report error
-                if(config.debug)
-                    console.log("error getting sublepra more posts in:".red, error, response.statusCode);
+                console.log('error getting sublepra more posts in:'.red, error, response.statusCode);
 
                 callback(false);
                 return;
@@ -1169,11 +1074,13 @@ iLepra.sub = {
             // parse
             iLepra.util.processJSONPosts(data.posts, iLepra.sub.posts);
 
-            if(config.debug)
-                console.log("got sublepra more posts!".green);
+            console.log('got sublepra more posts!'.green);
 
             // trigger event
             callback(true);
         });
     }
 };
+
+// export
+module.exports = iLepra;

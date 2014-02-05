@@ -1,5 +1,8 @@
-var should = require('should'),
-    lepralib = require('../lepra');
+var should = require('should');
+var lepralib = require('../lepra');
+
+// cookies - put your cookies here
+var cookies = [];
 
 describe('lepralib', function() {
     /**
@@ -7,7 +10,7 @@ describe('lepralib', function() {
      */
     describe('#init()', function() {
         it('should get captcha and login code', function(done){
-            lepralib.init(function(success){
+            lepralib.init(null, function(success){
                 if (!lepralib.isAuthenticated) {
                     success.should.be.false;
                     lepralib.captchaURL.should.be.a('string');
@@ -23,7 +26,26 @@ describe('lepralib', function() {
                     done();
                 }
             });
-        })
+        });
+
+        it('should get user sublepras', function(done){
+            lepralib.init(cookies, function(success){
+                if (!lepralib.isAuthenticated) {
+                    success.should.be.false;
+                    lepralib.captchaURL.should.be.a('string');
+                    lepralib.loginCode.should.be.a('string');
+                    done();
+                }else{
+                    success.should.be.true;
+                    lepralib.userSubLepras.should.not.be.empty;
+                    lepralib.userSubLepras[0].should.have.property('name');
+                    lepralib.userSubLepras[0].should.have.property('creator');
+                    lepralib.userSubLepras[0].should.have.property('link');
+                    lepralib.userSubLepras[0].should.have.property('logo');
+                    done();
+                }
+            });
+        });
     });
 
     describe('#getLastPosts()', function(){

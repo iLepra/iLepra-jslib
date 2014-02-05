@@ -4,9 +4,13 @@ var lepralib = require('./lepra'),
 var config = {
         login: '',
         pass: ''
-    },
+    };
 
-    onGetSublepraPosts = function(success){
+// cookies
+var cookies = [];
+
+// functions
+var onGetSublepraPosts = function(success){
         if(success){
             console.log('got sublepra posts ok!', lepralib.sub.posts.length, lepralib.sub.posts[0]);
         }else{
@@ -47,7 +51,7 @@ var config = {
         }
     },
     postComment = function(){
-        lepralib.post.addComment("test post", null, lepralib.post.current.wtf.comment, '1539365', 'inbox', null, onPostComment);
+        lepralib.post.addComment('test post', null, lepralib.post.current.wtf.comment, '1539365', 'inbox', null, onPostComment);
     },
 
     onGetComments = function(success){
@@ -59,7 +63,7 @@ var config = {
         }
     },
     getComments = function(){
-        lepralib.post.getComments("1539365", "inbox", null, onGetComments);
+        lepralib.post.getComments('1539365', 'inbox', null, onGetComments);
     },
 
     onGetGov = function(success){
@@ -83,7 +87,7 @@ var config = {
         }
     },
     sendChatMessage = function(){
-        lepralib.chat.sendMessage("тестовый привет от робота!", onSendChatMessage);
+        lepralib.chat.sendMessage('тестовый привет от робота!', onSendChatMessage);
     },
 
     // tests
@@ -213,4 +217,4 @@ var config = {
 // enable debug
 lepralib.config.debug = true;
 // init
-lepralib.init(onInit);
+lepralib.init(cookies, onInit);
