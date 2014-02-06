@@ -7,13 +7,12 @@ var iLepra = function() {
     var self = this;
 
     /**
-     * Override console.log() to only render if debug is on
+     * Make custom log() to only render if debug is on
      */
-    var originalLog = console.log;
-    console.log = function() {
+    self.log = function() {
         if(self.config.debug) {
             Array.prototype.unshift.call(arguments, '[leprabox] '.white);
-            originalLog.apply(this, arguments);
+            console.log.apply(this, arguments);
         }
     };
 
