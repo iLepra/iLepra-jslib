@@ -7,7 +7,7 @@ var config = {
     };
 
 // cookies
-var cookies = [];
+var cookies = [ ];
 
 // functions
 var onGetSublepraPosts = function(success){

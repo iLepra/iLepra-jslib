@@ -4,12 +4,19 @@ var lepralib = require('../lepra');
 // cookies - put your cookies here
 var cookies = [];
 
+// url of test inbox to test chat posting
+var textInbox = 'leprosorium.ru/my/inbox/1670746';
+// data of test inbox post to load / post commets
+var postId = '1670746';
+var postType = 'inbox';
+
+// test suit
 describe('lepralib', function() {
     /**
      * Main functions tests
      */
     describe('#init()', function() {
-        it('should get captcha and login code', function(done){
+        it('(without cookies) should get captcha and login code', function(done){
             lepralib.init(null, function(success){
                 if (!lepralib.isAuthenticated) {
                     success.should.be.false;
@@ -28,7 +35,7 @@ describe('lepralib', function() {
             });
         });
 
-        it('should get user sublepras', function(done){
+        it('(with cookies) should get user sublepras', function(done){
             lepralib.init(cookies, function(success){
                 if (!lepralib.isAuthenticated) {
                     success.should.be.false;
@@ -175,31 +182,19 @@ describe('lepralib', function() {
         });
     });
 
-    describe('#doLogout()', function(){
-        // remove skip to test logout.
-        // warning! this will remove cookies & will require re-auth through cli-client
-        it.skip('should logout', function(done) {
-            lepralib.doLogout(function(success){
-                success.should.be.true;
-                lepralib.init(function(success){
-                    success.should.be.false;
-                    lepralib.captchaURL.should.be.a('string');
-                    lepralib.loginCode.should.be.a('string');
-                    done();
-                });
-            });
-        });
-    });
-
     /**
      * Chat submodule tests
      */
     describe('.chat', function(){
+        // use text inbox to post messages
+        lepralib.chat.defaultKey = textInbox;
+
         describe('#getMessages()', function(){
+            // get m
             it('should get chat messages', function(done) {
                 lepralib.chat.getMessages(function(success){
                     success.should.be.true;
-                    lepralib.chat.messages.length.should.equal(42);
+                    lepralib.chat.messages.length.should.above(0);
                     lepralib.chat.messages[0].should.have.property('id_user');
                     lepralib.chat.messages[0].should.have.property('body');
                     lepralib.chat.messages[0].should.have.property('createdate');
@@ -211,8 +206,9 @@ describe('lepralib', function() {
         });
 
         describe('#sendMessage()', function(){
-            it.skip('should send chat messages', function(done) {
-                lepralib.chat.sendMessage('Тестовый привет от робота, котаны!', function(success){
+            // test sending message
+            it('should send chat messages', function(done) {
+                lepralib.chat.sendMessage('Тестовый привет от робота, котаны! ' + new Date().toString(), function(success){
                     success.should.be.true;
                     done();
                 });
@@ -242,7 +238,7 @@ describe('lepralib', function() {
     describe('.post', function(){
         describe('#getComments()', function(){
             it('should get post comments', function(done){
-                lepralib.post.getComments('1530936', '', 'games.leprosorium.ru', function(success){
+                lepralib.post.getComments(postId, postType, '', function(success){
                     success.should.be.true;
                     lepralib.post.current.should.have.property('wtf');
                     lepralib.post.current.wtf.should.have.property('comment');
@@ -253,10 +249,10 @@ describe('lepralib', function() {
             });
         });
 
-        describe.skip('#addComment()', function(){
+        describe('#addComment()', function(){
             it('should post comment', function(done){
                 var comLen = lepralib.post.comments.length;
-                lepralib.post.addComment('test post '+new Date().toString(), null, lepralib.post.current.wtf.comment, '1539365', 'inbox', null, function(success){
+                lepralib.post.addComment('test post '+new Date().toString(), null, lepralib.post.current.wtf.comment, postId, 'inbox', null, function(success){
                     success.should.be.true;
                     (lepralib.post.comments.length - comLen).should.equal(1);
                     done();
@@ -264,7 +260,7 @@ describe('lepralib', function() {
             });
         });
 
-        describe.skip('#voteComment()', function(){
+        describe('#voteComment()', function(){
             it('should vote for comment', function(done){
                 lepralib.post.voteComment('1', '33981295', '1530936', lepralib.post.current.wtf.vote, 'games.leprosorium.ru', function(success){
                     success.should.be.true;
@@ -273,7 +269,7 @@ describe('lepralib', function() {
             });
         });
 
-        describe.skip('#votePost()', function(){
+        describe('#votePost()', function(){
             it('should vote for post', function(done){
                 lepralib.post.votePost('1', '1530936', 'games.leprosorium.ru', function(success){
                     success.should.be.true;
@@ -361,16 +357,3 @@ describe('lepralib', function() {
     });
 
 });
-
-
-
-
-
-
-
-
-
-
-
-
-
