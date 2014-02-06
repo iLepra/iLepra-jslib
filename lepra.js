@@ -25,7 +25,7 @@ var iLepra = function() {
 
         // fill container with cookies
         for(i = 0; i < len; i++) {
-            j.add(request.cookie(cookies[i]));
+            j.setCookie(request.cookie(cookies[i]), 'http://leprosorium.ru');
         }
 
         // replace default request with new one with cookies
