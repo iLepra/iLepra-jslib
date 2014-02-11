@@ -37,7 +37,7 @@ var iLepra = function() {
     //
 
     // local request instance
-    this.request = request.defaults({});
+    this.request = request.defaults({jar: true});
 
     // max cache time
     this.cacheTime = 30 * 60000;
