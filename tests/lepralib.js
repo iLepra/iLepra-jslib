@@ -1,8 +1,9 @@
 var should = require('should');
 var lepralib = require('../lepra');
+var config = require('../config');
 
 // cookies - put your cookies here
-var cookies = [];
+var cookies = config.cookies;
 
 // url of test inbox to test chat posting
 var textInbox = 'leprosorium.ru/my/inbox/1670746';

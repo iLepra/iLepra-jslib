@@ -1,14 +1,10 @@
 var lepralib = require('./lepra'),
     prompt = require('prompt');
-
-var config = {
-        login: '',
-        pass: ''
-    };
+var config = require('./config');
 
 // cookies
-var cookies = [ ];
-
+var cookies = config.cookies;
+//*/
 // functions
 var onGetSublepraPosts = function(success){
         if(success){
@@ -184,6 +180,7 @@ var onGetSublepraPosts = function(success){
     onLogin = function(success){
         if(success){
             console.log('logged in!');
+            console.log('new cookies', lepralib.cookies);
             afterLoggedIn();
         }else{
             console.log('error logging in!');
