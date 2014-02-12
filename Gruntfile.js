@@ -96,13 +96,13 @@ module.exports = function(grunt) {
             target: {
                 files: [
                     {src: 'lepra.js', dest: 'docs/lepra.md'},
-                    {src: 'lepra.chat.js', dest: 'docs/lepra.chat.md'},
-                    {src: 'lepra.core.js', dest: 'docs/lepra.core.md'},
-                    {src: 'lepra.gov.js', dest: 'docs/lepra.gov.md'},
-                    {src: 'lepra.post.js', dest: 'docs/lepra.post.md'},
-                    {src: 'lepra.profile.js', dest: 'docs/lepra.profile.md'},
-                    {src: 'lepra.sub.js', dest: 'docs/lepra.sub.md'},
-                    {src: 'lepra.util.js', dest: 'docs/lepra.util.md'}
+                    {src: 'lib/lepra.chat.js', dest: 'docs/lepra.chat.md'},
+                    {src: 'lib/lepra.core.js', dest: 'docs/lepra.core.md'},
+                    {src: 'lib/lepra.gov.js', dest: 'docs/lepra.gov.md'},
+                    {src: 'lib/lepra.post.js', dest: 'docs/lepra.post.md'},
+                    {src: 'lib/lepra.profile.js', dest: 'docs/lepra.profile.md'},
+                    {src: 'lib/lepra.sub.js', dest: 'docs/lepra.sub.md'},
+                    {src: 'lib/lepra.util.js', dest: 'docs/lepra.util.md'}
                 ]
             }
         },
