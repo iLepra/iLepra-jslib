@@ -89,13 +89,33 @@ module.exports = function(grunt) {
                 },
                 src: ['tests/**/*.js']
             }
-        }
+        },
+
+        // docs generation task
+        markdox: {
+            target: {
+                files: [
+                    {src: 'lepra.js', dest: 'docs/lepra.md'},
+                    {src: 'lepra.chat.js', dest: 'docs/lepra.chat.md'},
+                    {src: 'lepra.core.js', dest: 'docs/lepra.core.md'},
+                    {src: 'lepra.gov.js', dest: 'docs/lepra.gov.md'},
+                    {src: 'lepra.post.js', dest: 'docs/lepra.post.md'},
+                    {src: 'lepra.profile.js', dest: 'docs/lepra.profile.md'},
+                    {src: 'lepra.sub.js', dest: 'docs/lepra.sub.md'},
+                    {src: 'lepra.util.js', dest: 'docs/lepra.util.md'}
+                ]
+            }
+        },
     });
 
     // load extensions
     grunt.loadNpmTasks('grunt-contrib-jshint');
     grunt.loadNpmTasks('grunt-mocha-test');
+    grunt.loadNpmTasks('grunt-markdox');
 
     // Default task(s).
     grunt.registerTask('default', ['jshint', 'mochaTest']);
+
+    // docs task
+    grunt.registerTask('docs', ['markdox']);
 };

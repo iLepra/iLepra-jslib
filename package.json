@@ -1,7 +1,7 @@
 {
   "name": "lepralib",
   "preferGlobal": true,
-  "version": "0.1.0",
+  "version": "1.0.0",
   "author": "Tim Ermilov <yamalight@gmail.com>",
   "description": "Lepralib for node.js, allows access to you Lepra account",
   "contributors": [
@@ -34,7 +34,8 @@
     "prompt": "*",
     "grunt": "*",
     "grunt-contrib-jshint": "*",
-    "grunt-mocha-test": "*"
+    "grunt-mocha-test": "*",
+    "grunt-markdox": "*"
   },
   "license": "MIT",
   "engines": {
