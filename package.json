@@ -11,6 +11,9 @@
     }
   ],
   "main": "./lepra",
+  "scripts": {
+    "test": "./node_modules/.bin/grunt"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/iLepra/iLepra-jslib.git"
