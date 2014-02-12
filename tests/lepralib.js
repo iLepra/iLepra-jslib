@@ -21,8 +21,10 @@ describe('lepralib', function() {
             lepralib.init(null, function(success){
                 if (!lepralib.isAuthenticated) {
                     success.should.be.false;
-                    lepralib.captchaURL.should.be.a('string');
-                    lepralib.loginCode.should.be.a('string');
+                    lepralib.should.have.property('captchaURL');
+                    lepralib.captchaURL.should.be.type('string');
+                    lepralib.should.have.property('loginCode');
+                    lepralib.loginCode.should.be.type('string');
                     done();
                 }else{
                     success.should.be.true;
@@ -40,8 +42,8 @@ describe('lepralib', function() {
             lepralib.init(cookies, function(success){
                 if (!lepralib.isAuthenticated) {
                     success.should.be.false;
-                    lepralib.captchaURL.should.be.a('string');
-                    lepralib.loginCode.should.be.a('string');
+                    lepralib.captchaURL.should.be.type('string');
+                    lepralib.loginCode.should.be.type('string');
                     done();
                 }else{
                     success.should.be.true;
